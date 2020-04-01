@@ -1,16 +1,15 @@
 class Node
   include Comparable
-  attr_accessor :left_child, :right_child, :children, :value
+  attr_accessor :left_child, :right_child, :value
 
   def initialize(value=nil)
     @left_child = nil
     @right_child = nil
     @value = value
-    @children = nil
   end
 
-  def has_no_children?
-    if !self.left_child &&  !self.right_child
+  def has_children?
+    if self.left_child || self.right_child
       return true
     end
   end
@@ -30,10 +29,10 @@ end
 
 class Tree
   include Enumerable
+  attr_reader :root
   def initialize(array)
     @root = nil
     array = build_tree(array)
-    puts array
   end
 
   def tree_builder(node, rec_node=nil)
@@ -47,10 +46,11 @@ class Tree
   end
 
   def build_tree(array)
-    @root = Node.new(array[0])
+    array.sort!
     array.uniq!
+    @root = Node.new(array.slice!(array.length/2))
     array.map! {|item| item = Node.new(item)}
-    array[1..-1].each {|item| tree_builder(item, @root)}
+    array.each {|node| tree_builder(node, @root)}
     #for every node in array
         #*use recursion to change current node (current_node = @root, and depending on comparison operation current_node = current_node.left_child || right_child)
 
@@ -60,32 +60,12 @@ class Tree
         
         #if node is < and left child exists, compare with left child and its children recursively
         #else (if no left child)******BASECASE***** current_node.left_child = node
-    # array[1..-1].each_with_index do |item, index|
-    #   puts "ITEM:#{item} INDEX:#{index}"
-    #   if @root.has_no_children?
-    #     item >= @root ? @root.right_child = Node.new(item) : @root.left_child = Node.new(item)
-    #   end
-    # end
     @root
   end
 
   def insert(value)
     new_node = Node.new(value)
     tree_builder(new_node, @root)
-  end
-
-  def to_s(node=@root)
-    #recursive method to print child nodes
-    #start at root. if left subtree exists, print left subtree
-    #print root value
-    #if right subtree exists from root, print right subtree
-    
-
-    # while !current_node.has_no_children?
-    #   puts "\t#{current_node.value}"
-    #   puts "\t#{current_node.left_child.value}  #{current_node.right_child.value}"
-    #   current_node = current_node.right_child
-    # end
   end
 
   def bfs_print(node=@root)
@@ -139,7 +119,6 @@ class Tree
     queue.push(node)
     while !queue.empty?
       current = queue.shift
-
       if (current.value == value)
         return current
         break
@@ -159,47 +138,87 @@ class Tree
     queue.push(node)
     while !queue.empty?
       current = queue.shift
-      yield(current)
+      yield(current) if block_given?
       if current.has_left_child?
         queue.push current.left_child
       end
-
       if current.has_right_child?
         queue.push current.right_child
       end
     end
   end
 
-  def inorder
-    
+  def preorder(node=@root, &block)
+    if !node
+      return
+    end
+    yield(node) if block_given?
+    preorder(node.left_child, &block)
+    preorder(node.right_child, &block)
   end
 
-  def preorder
-  
+  def inorder(node=@root, &block)
+    if !node
+      return
+    end
+    yield(node) if block_given?
+    inorder(node.left_child, &block)
+    inorder(node.right_child, &block)
   end
 
-  def postorder
-  
+  def postorder(node=@root, &block)
+    if !node
+      return
+    end
+    output = []
+    if block_given?
+      yield(node) 
+    else
+      output.push(node.value)
+    end
+    postorder(node.left_child, &block)
+    postorder(node.right_child, &block)
+    p output if !block_given?
+  end
+
+  def depth(node=@root, counter=0)
+    if !node
+      return counter
+    end
+    x = depth(node.left_child, counter + 1)
+    y = depth(node.right_child, counter + 1)
+    x > y ? x : y
+  end
+
+  def balanced?
+    x = depth(self.root.left_child)
+    y = depth(self.root.right_child)
+    x - y <= 1 && y - x <= 1 ? true : false
   end
 end
-# node1 = Node.new(1)
-# node2 = Node.new(2)
-# puts node1 < node2
-# puts "test2"
-# node3 = Node.new("apples")
-# nodex = Node.new("Apples")
-# node4 = Node.new("bananas")
-# node5 = Node.new("carrots")
-# puts node3 == nodex
-tree = Tree.new([5,7,4,2])
-tree.insert(9)
-tree.bfs_print
-tree.delete(9)
-tree.bfs_print
 
-tree.find(7).value = 100
-tree.bfs_print
-2.times {puts ""}
-tree.level_order{|i| i.value = 0}
-tree.bfs_print
+def rebalance!(tree)
+  if !tree.balanced?
+    tree_values = []
+    tree.level_order do |i|
+      tree_values << i.value
+    end
+    tree = Tree.new(tree_values)
+  else
+    puts "Tree is already balanced."
+  end
+end
 
+tree = Tree.new([15,100,4,6,102,99,103,104,105,106])
+
+puts "postorder"
+tree.postorder{|i| puts i.value}
+puts tree.depth
+puts tree.balanced?
+puts tree.balanced?
+puts ""
+puts "tree in level_order"
+tree.level_order{|i| puts i.value}
+puts "tree in preorder"
+puts tree.preorder {|i| puts i.value}
+rebalance!(tree)
